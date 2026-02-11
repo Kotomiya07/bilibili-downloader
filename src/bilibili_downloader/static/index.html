@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilibili Downloader</title>
+    <!-- NOTE: 本番環境ではTailwind CSSをローカルビルドしてください -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .toast-slide-in { animation: slideIn 0.3s ease-out; }
+        .toast-slide-out { animation: slideOut 0.3s ease-in forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+
+        .spinner {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- トースト通知コンテナ -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm"></div>
+
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        <h1 class="text-2xl font-bold text-center mb-4 text-pink-400">Bilibili Downloader</h1>
+
+        <!-- 警告文（コンパクト） -->
+        <details class="bg-yellow-900/30 border border-yellow-700 rounded-lg px-4 py-2 mb-4 text-sm text-yellow-200">
+            <summary class="cursor-pointer font-semibold">注意事項（クリックで表示）</summary>
+            <ul class="list-disc list-inside space-y-1 text-yellow-300/90 mt-2">
+                <li>本ツールは個人的な学習・研究目的でのみ使用してください。</li>
+                <li>ダウンロードした動画の再配布・商用利用は著作権法に抵触する可能性があります。</li>
+                <li>本ツールはBilibiliの非公式APIを使用しており、Bilibiliの利用規約に反する場合があります。</li>
+                <li>利用者は自己の責任において本ツールを使用するものとし、開発者は一切の責任を負いません。</li>
+            </ul>
+        </details>
+
+        <!-- URL入力バー（フルワイド） -->
+        <div class="flex flex-wrap gap-2 mb-4">
+            <div class="relative flex-1 min-w-0">
+                <input id="video-url" type="text" placeholder="BilibiliのURLを貼り付け"
+                    onkeydown="if(event.key==='Enter')fetchVideoInfo()"
+                    oninput="toggleClearBtn()"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:border-pink-400 text-sm">
+                <button id="btn-clear" onclick="clearInput()"
+                    class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-lg leading-none"
+                    title="入力をクリア">&times;</button>
+            </div>
+            <button onclick="pasteFromClipboard()"
+                class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-3 py-2 rounded-lg transition text-sm whitespace-nowrap"
+                title="クリップボードから貼り付け">貼付
+            </button>
+            <button id="btn-fetch" onclick="fetchVideoInfo()"
+                class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition text-sm whitespace-nowrap">
+                取得
+            </button>
+        </div>
+
+        <!-- メインコンテンツ: デスクトップで2カラム -->
+        <div class="lg:grid lg:grid-cols-[1fr_300px] lg:gap-5">
+            <!-- 左カラム: ビデオプレビュー -->
+            <div>
+                <!-- プレースホルダー（動画未取得時） -->
+                <div id="video-placeholder" class="bg-gray-800 rounded-xl overflow-hidden shadow-lg">
+                    <div class="aspect-video flex items-center justify-center text-gray-500 text-sm">
+                        URLを入力して動画情報を取得してください
+                    </div>
+                </div>
+
+                <!-- 動画情報（取得後） -->
+                <div id="video-info" class="hidden fade-in">
+                    <div class="bg-gray-800 rounded-xl overflow-hidden shadow-lg">
+                        <div class="aspect-video w-full bg-black">
+                            <video id="video-player" class="w-full h-full" controls></video>
+                            <audio id="audio-player" hidden></audio>
+                        </div>
+                        <div class="p-4">
+                            <h3 id="video-title" class="font-medium text-sm"></h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右カラム: コントロールパネル -->
+            <div class="space-y-4 mt-4 lg:mt-0">
+                <!-- ログインセクション -->
+                <section id="login-section" class="bg-gray-800 rounded-xl p-4 shadow-lg">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-sm font-semibold">ログイン</h2>
+                        <span id="login-badge" class="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400">未ログイン</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">QRコードでログインすると1080p以上の画質が利用できます</p>
+                    <div id="qr-area" class="text-center">
+                        <button id="btn-show-qr" onclick="generateQR()"
+                            class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-1.5 rounded-lg transition text-sm">
+                            QRコードを表示
+                        </button>
+                    </div>
+                    <div id="qr-display" class="hidden text-center fade-in">
+                        <img id="qr-image" class="mx-auto my-3 rounded-lg bg-white p-2" width="180" height="180" alt="QR Code">
+                        <p id="qr-status" class="text-xs text-gray-400">Bilibiliアプリでスキャンしてください</p>
+                    </div>
+                </section>
+
+                <!-- 画質選択・ダウンロード -->
+                <section id="download-controls" class="hidden bg-gray-800 rounded-xl p-4 shadow-lg fade-in">
+                    <h2 class="text-sm font-semibold mb-3">ダウンロード設定</h2>
+                    <div class="flex gap-2 items-center mb-3">
+                        <label class="text-sm text-gray-400 whitespace-nowrap">画質:</label>
+                        <select id="quality-select"
+                            class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm focus:outline-none">
+                        </select>
+                    </div>
+                    <button id="btn-download" onclick="startDownload()"
+                        class="w-full bg-pink-500 hover:bg-pink-600 text-white py-2 rounded-lg transition text-sm font-medium">
+                        ダウンロード開始
+                    </button>
+                </section>
+
+                <!-- 進捗セクション -->
+                <section id="progress-section" class="hidden bg-gray-800 rounded-xl p-4 shadow-lg fade-in">
+                    <h2 class="text-sm font-semibold mb-3">ダウンロード進捗</h2>
+                    <div id="progress-phase" class="text-xs text-gray-400 mb-2">準備中...</div>
+                    <div class="w-full bg-gray-700 rounded-full h-3 mb-1 overflow-hidden">
+                        <div id="progress-bar" class="bg-pink-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <div id="progress-percent" class="text-xs text-right text-gray-400">0%</div>
+                    <div id="download-error" class="hidden mt-3 p-2 bg-red-900/50 border border-red-700 rounded-lg text-xs text-red-300"></div>
+                </section>
+
+                <!-- ダウンロード完了 -->
+                <section id="complete-section" class="hidden bg-gray-800 rounded-xl p-4 shadow-lg fade-in">
+                    <div class="text-center">
+                        <div class="text-pink-400 text-3xl mb-1">&#10003;</div>
+                        <p class="text-sm font-medium mb-3">ダウンロード完了</p>
+                        <a id="download-link" href="#"
+                            class="inline-block bg-pink-500 hover:bg-pink-600 text-white px-5 py-1.5 rounded-lg transition text-sm">
+                            ファイルをダウンロード
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/main.js"></script>
+</body>
+</html>
