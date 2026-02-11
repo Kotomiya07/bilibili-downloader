@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from bilibili_downloader.auth import AuthManager
-from bilibili_downloader.bilibili_client import BilibiliClient, extract_bvid
+from bilibili_downloader.bilibili_client import BilibiliClient, extract_bvid, extract_url, resolve_short_url
 from bilibili_downloader.downloader import Downloader, check_ffmpeg
 
 logger = logging.getLogger(__name__)
@@ -166,7 +166,9 @@ async def video_info(request: Request, response: Response, req: VideoInfoRequest
     session = _get_session(request)
     _set_session_cookie(response, session.session_id)
     bc = session.client
-    bvid = extract_bvid(req.url)
+    raw_url = extract_url(req.url)
+    resolved_url = await resolve_short_url(raw_url)
+    bvid = extract_bvid(resolved_url)
     info = await bc.get_video_info(bvid)
     play_url = await bc.get_play_url(bvid, info["cid"])
 
@@ -312,7 +314,7 @@ async def _run_download(task_id: str, url: str, quality: int, session: UserSessi
         bc = session.client
         dl = get_downloader()
 
-        bvid = extract_bvid(url)
+        bvid = extract_bvid(await resolve_short_url(extract_url(url)))
         info = await bc.get_video_info(bvid)
         title = info["title"]
         # ファイル名を安全な文字のみに制限

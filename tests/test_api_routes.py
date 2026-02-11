@@ -76,11 +76,11 @@ class TestAPIRoutes:
     async def test_video_info(self, client):
         """動画情報取得エンドポイントのテスト"""
         mock_info = {
-            "bvid": "BV1xx411c7mD",
-            "title": "テスト",
-            "pic": "http://example.com/thumb.jpg",
-            "cid": 12345,
-            "pages": [{"cid": 12345, "part": "Part 1", "page": 1}],
+            "bvid": "BV1Gk4y1y7A5",
+            "title": "乃木坂46日语教室~斋藤飞鸟篇~",
+            "pic": "http://i0.hdslb.com/bfs/archive/thumb.jpg",
+            "cid": 228989171,
+            "pages": [{"cid": 228989171, "part": "asuka_reSE0818", "page": 1}],
         }
         mock_play_url = {
             "video": [{"id": 80, "baseUrl": "http://example.com/video.m4s"}],
@@ -100,12 +100,12 @@ class TestAPIRoutes:
 
         resp = await client.post(
             "/api/video/info",
-            json={"url": "https://www.bilibili.com/video/BV1xx411c7mD"},
+            json={"url": "https://www.bilibili.com/video/BV1Gk4y1y7A5"},
             cookies={"bilidl_session": "test_session2"},
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["title"] == "テスト"
+        assert data["title"] == "乃木坂46日语教室~斋藤飞鸟篇~"
         assert len(data["quality_options"]) > 0
 
     @pytest.mark.asyncio
