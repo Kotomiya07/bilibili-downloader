@@ -82,8 +82,10 @@
                 <div id="video-info" class="hidden fade-in">
                     <div class="bg-gray-800 rounded-xl overflow-hidden shadow-lg">
                         <div class="aspect-video w-full bg-black">
-                            <video id="video-player" class="w-full h-full" controls></video>
-                            <audio id="audio-player" hidden></audio>
+                            <iframe id="bilibili-player" class="w-full h-full" frameborder="0"
+                                allowfullscreen
+                                sandbox="allow-scripts allow-same-origin"
+                                referrerpolicy="no-referrer"></iframe>
                         </div>
                         <div class="p-4">
                             <h3 id="video-title" class="font-medium text-sm"></h3>

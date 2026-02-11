@@ -35,6 +35,7 @@ function clearInput() {
     document.getElementById('video-info').classList.add('hidden');
     document.getElementById('video-placeholder').classList.remove('hidden');
     document.getElementById('download-controls').classList.add('hidden');
+    document.getElementById('bilibili-player').src = '';
     input.focus();
 }
 
@@ -48,15 +49,6 @@ function setButtonLoading(btn, loadingText) {
 function resetButton(btn, text) {
     btn.disabled = false;
     btn.innerHTML = text || btn._originalText || '';
-}
-
-// --- 映像と音声の同期 ---
-function syncVideoAudio(video, audio) {
-    video.addEventListener('play', () => { audio.currentTime = video.currentTime; audio.play(); });
-    video.addEventListener('pause', () => audio.pause());
-    video.addEventListener('seeked', () => { audio.currentTime = video.currentTime; });
-    video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate; });
-    video.addEventListener('volumechange', () => { audio.volume = video.volume; audio.muted = video.muted; });
 }
 
 // --- クリップボードから貼り付け ---
@@ -179,11 +171,11 @@ async function fetchVideoInfo() {
 
         document.getElementById('video-title').textContent = currentVideoInfo.title;
 
-        const player = document.getElementById('video-player');
-        const audio = document.getElementById('audio-player');
-        player.src = '/api/proxy/stream?url=' + encodeURIComponent(currentVideoInfo.preview_video_url);
-        audio.src = '/api/proxy/stream?url=' + encodeURIComponent(currentVideoInfo.preview_audio_url);
-        syncVideoAudio(player, audio);
+        // Bilibili埋め込みプレイヤーを設定
+        const player = document.getElementById('bilibili-player');
+        player.src = 'https://player.bilibili.com/player.html?bvid=' + currentVideoInfo.bvid
+            + '&cid=' + currentVideoInfo.cid
+            + '&high_quality=1&danmaku=0&autoplay=0';
 
         const select = document.getElementById('quality-select');
         select.innerHTML = '';
